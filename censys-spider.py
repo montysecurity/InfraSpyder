@@ -1,5 +1,5 @@
 from censys.search import CensysHosts
-from os import environ, makedirs, removedirs
+from os import environ, makedirs, removedirs, system, chdir
 import requests
 
 endpoints = set()
@@ -25,11 +25,11 @@ for service in services:
 endpoints = [ "http://0.0.0.0:8000" ]
 
 # create endpoints dir
-endpoints_dir = "endpoints/"
-try:
-    makedirs(endpoints_dir)
-except FileExistsError:
-    pass
+#endpoints_dir = "endpoints/"
+#try:
+#    makedirs(endpoints_dir)
+#except FileExistsError:
+#    pass
 
 # for each endpoint
     # create endpoint dir
@@ -37,14 +37,40 @@ except FileExistsError:
     # only download files containing string from "filters" dictionary
     # Add support for proxies
 
-f = open("patterns.txt", "r")
-patterns = f.readlines()
+#f = open("patterns.txt", "r")
+#patterns = f.readlines()
 
+# remove findings and .wget.log at init
 for endpoint in endpoints:
     try:
         requests.get(endpoint, verify=False)
     except requests.exceptions.ConnectionError:
         print(f"{endpoint} is offline")
         continue
-    dir_name = str(endpoints_dir) + str(endpoint).replace(".", "_").replace(":", "_").replace("/", "_")
-    makedirs(dir_name)
+    #dir_name = str(endpoints_dir) + str(endpoint).replace(".", "_").replace(":", "_").replace("/", "_")
+    #makedirs(dir_name)
+    # Write log file for parsing
+    # TO DO: Convert this to a proper spider
+    cmd = f"wget --spider --no-parent --recursive --no-directories {endpoint} 2>> .wget.log"
+    system(cmd)
+
+patterns = [ "exe", "dll" ]
+f = open("patterns.txt", "r")
+patterns = f.readlines()
+f.close()
+
+for pattern in patterns:
+    cmd = "cat .wget.log | grep http | grep " + pattern.strip() + " | sed 's/.* http/http/g' >> .findings.log && sort -ufo .findings.log .findings.log"
+    system(cmd)
+
+f = open(".findings.log", "r")
+findings = f.readlines()
+print(findings)
+
+system("mkdir findings")
+chdir("findings")
+for finding in findings:
+    print(f"Downloading {finding}".strip())
+    cmd = f"wget -q {finding}"
+    system(cmd)
+chdir("../")
