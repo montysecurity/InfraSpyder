@@ -1,5 +1,6 @@
 from censys.search import CensysHosts
-from os import environ
+from os import environ, makedirs, removedirs
+import requests
 
 endpoints = set()
 
@@ -21,8 +22,29 @@ for service in services:
         endpoint = str(service_name.lower() + "://" + ip + ":" + str(service_port))
         endpoints.add(endpoint)
 
+endpoints = [ "http://0.0.0.0:8000" ]
+
 # create endpoints dir
+endpoints_dir = "endpoints/"
+try:
+    makedirs(endpoints_dir)
+except FileExistsError:
+    pass
+
 # for each endpoint
     # create endpoint dir
     # spider each dir
     # only download files containing string from "filters" dictionary
+    # Add support for proxies
+
+f = open("patterns.txt", "r")
+patterns = f.readlines()
+
+for endpoint in endpoints:
+    try:
+        requests.get(endpoint, verify=False)
+    except requests.exceptions.ConnectionError:
+        print(f"{endpoint} is offline")
+        continue
+    dir_name = str(endpoints_dir) + str(endpoint).replace(".", "_").replace(":", "_").replace("/", "_")
+    makedirs(dir_name)
