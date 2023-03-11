@@ -1,7 +1,7 @@
 from censys.search import CensysHosts
 from pprint import pprint
 from os import getenv, makedirs, removedirs, system, chdir
-import requests, argparse
+import requests, argparse, censys
 
 parser = argparse.ArgumentParser(description="Download files from hosts in Censys results provided a Censys query and patterns to match.")
 parser.add_argument("-q", "--query", type=str, help="Censys Query")
@@ -17,10 +17,20 @@ example = dict({'ip': '101.43.51.150', 'services': [{'_decoded': 'ssh', '_encodi
 censys_api_id = getenv("CENSYS_API_ID")
 censys_api_secret = getenv("CENSYS_API_SECRET")
 censys_api = CensysHosts(censys_api_id, censys_api_secret)
-censys_query = "(Directory listing for msf4) and services.software.vendor='Python Software Foundation'"
-censys_search = censys_api.search(censys_query)
-#pprint(vars(censys_search))
-censys_results = censys_search.view_all()
+censys_query = "(Directory listing for msf4)"
+#censys_search = censys_api.search(censys_query)
+#try:
+#    censys_results = censys_search.view_all()
+#except censys.common.exceptions.CensysRateLimitExceededException:
+#    print("Reached API Quota")
+#    quit()
+
+for r in example:
+    print(r)
+    print(example["ip"])
+
+quit()
+
 
 ip = example["ip"]
 services = example["services"]
