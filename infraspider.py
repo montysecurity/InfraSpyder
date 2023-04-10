@@ -47,15 +47,16 @@ if censys_query:
     censys_api_id = getenv("CENSYS_API_ID")
     censys_api_secret = getenv("CENSYS_API_SECRET")
     censys_api = CensysHosts(censys_api_id, censys_api_secret)
+    #censys_query = "ip:8.8.8.8 or ip:8.8.4.4"
     censys_search = censys_api.search(censys_query)
     try:
         censys_results = censys_search.view_all()
     except censys.common.exceptions.CensysRateLimitExceededException:
         print("Reached API Quota")
         quit()
-    for result in censys_results:
-        ip = result["ip"]
-        services = result["services"]
+    for ip in censys_results:
+        ip_info = censys_results[ip]
+        services = ip_info["services"]
         for service in services:
             service_name = service["extended_service_name"]
             service_port = service["port"]
@@ -84,9 +85,7 @@ for endpoint in endpoints:
     print(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Checking {endpoint}")
     try:
         requests.get(endpoint, verify=False, timeout=5)
-    except requests.exceptions.ConnectionError:
-        continue
-    except requests.exceptions.ReadTimeout:
+    except:
         continue
     dir_name = str(endpoint).replace(".", "_").replace(":", "_").replace("/", "_")
     try:
@@ -96,15 +95,24 @@ for endpoint in endpoints:
     chdir(dir_name)
     # Write log file for parsing
     # TO DO: Convert this to a proper spider
-    cmd = f"wget --spider --no-parent --recursive --no-directories {endpoint} 2>> wget.log"
+    cmd = f"wget -t 1 --spider --no-parent --recursive --no-directories {endpoint} 2>> wget.log"
     cmd_array = cmd.split(" ")
     print(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Running Command: {cmd}")
     sp.call(cmd_array)
+    try:
+        f = open("wget.log", "r")
+    except FileNotFoundError:
+        continue
+    f.close()
     for pattern in patterns:
         cmd = "cat wget.log | grep http | grep " + pattern.strip() + " | sed 's/.* http/http/g' >> findings.log && sort -ufo findings.log findings.log"
+        cmd_array = cmd.split(" ")
         print(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Running Command: {cmd}")
-        sp.call(cmd)
-    f = open("findings.log", "r")
+        sp.call(cmd_array)
+    try:
+        f = open("findings.log", "r")
+    except FileNotFoundError:
+        continue
     findings = f.readlines()
     f.close()
     print(findings)
@@ -112,7 +120,8 @@ for endpoint in endpoints:
     chdir("findings")
     for finding in findings:
         #print(f"Downloading {finding}".strip())
-        cmd = f"wget {finding}"
+        cmd = f"wget -t 1 {finding}"
+        cmd_array = cmd.split(" ")
         print(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Running Command: {cmd}")
-        sp.call(cmd)
+        sp.call(cmd_array)
     chdir("../../")
