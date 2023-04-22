@@ -6,6 +6,7 @@ Automatically spider the result set of a Censys/Shodan search and download all f
 
 ## Usage
 
+- Intended for open directory hunting, may have unkown bugs if used for any other type of web site
 - Store Censys API credentials in environment variables, CENSYS_API_ID & CENSYS_API_SECRET
 - Store Shodan API key in environment variable called SHODAN_API_KEY
 - All files downloaded can be found in the `findings` folder of the respective host listed in the `downloads` folder (e.g. `downloads/protocol_hostname_port/findings/`)
