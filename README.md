@@ -4,6 +4,10 @@ Automatically spider the result set of a Censys/Shodan search and download all f
 
 *This is basically a wrapper around various Linux binaries*
 
+## OPSEC Note
+
+- This tool does not provide any layers of security between the server you run this on and the server it downloads files from
+
 ## Usage
 
 - Intended for open directory hunting, may have unkown bugs if used for any other type of web site
