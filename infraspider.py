@@ -51,7 +51,6 @@ if censys_query:
     censys_api_id = getenv("CENSYS_API_ID")
     censys_api_secret = getenv("CENSYS_API_SECRET")
     censys_api = CensysHosts(censys_api_id, censys_api_secret)
-    #censys_query = "ip:8.8.8.8 or ip:8.8.4.4"
     censys_search = censys_api.search(censys_query)
     try:
         censys_results = censys_search.view_all()
@@ -91,11 +90,8 @@ for endpoint in endpoints:
     except FileExistsError:
         pass
     chdir(dir_name)
-    # Write log file for parsing
-    # TO DO: Convert this to a proper spider
     wget_log = open("wget.log", "w")
     cmd = f"wget -t 1 --spider --no-parent --recursive --no-directories {endpoint}"
-    cmd_array = cmd.split(" ")
     print(f"{Fore.CYAN}[INFRASPYDER]{Fore.RESET} Spidering {endpoint}".strip())
     sp.call(["wget", "-t", "1", "--spider", "--no-parent", "--recursive", "--no-directories", str(endpoint)], stderr=wget_log)
     wget_log.close()
@@ -107,7 +103,6 @@ for endpoint in endpoints:
     f.close()
     for pattern in patterns:
         cmd = "cat wget.log | grep http | grep " + pattern.strip() + " | sed 's/.* http/http/g' >> findings.log && sort -ufo findings.log findings.log"
-        cmd_array = cmd.split(" ")
         system(cmd)
     try:
         f = open("findings.log", "r")
@@ -124,9 +119,7 @@ for endpoint in endpoints:
     for finding in findings:
         if finding.strip().endswith("/"):
             continue
-        #print(f"Downloading {finding}".strip())
         cmd = f"wget -q -t 1 {finding}"
-        cmd_array = cmd.split(" ")
         print(str(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Attempting to download {finding}").strip())
         download_log = ".tmp.log"
         try:
