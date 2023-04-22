@@ -10,7 +10,7 @@ import requests, argparse, censys
 
 colorama_init()
 
-parser = argparse.ArgumentParser(description="Automatically spider the result set of a Censys/Shodan search and download all files where the file name matches a regex.")
+parser = argparse.ArgumentParser(description="Automatically spider the result set of a Censys/Shodan search and download all files where the file name or folder path matches a regex.")
 parser.add_argument("-c", "--censys-query", type=str, help="Censys Query")
 parser.add_argument("-s", "--shodan-query", type=str, help="Shodan Query")
 parser.add_argument("-p", "--patterns", type=str, help="File containing patterns to match (POSIX regex)")
