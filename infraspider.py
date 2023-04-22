@@ -1,7 +1,7 @@
 from censys.search import CensysHosts
 from shodan import Shodan
 from pprint import pprint
-from os import getenv, makedirs, removedirs, system, chdir
+from os import getenv, makedirs, removedirs, system, chdir, remove
 from colorama import init as colorama_init
 from colorama import Fore
 from colorama import Style
@@ -23,6 +23,10 @@ endpoints = set()
 
 if not pattern_file:
     print("Specify Pattern File with -p")
+    quit()
+
+if not censys_query and not shodan_query:
+    print("Provide Shodan search with -s and/or Censys query with -c")
     quit()
 
 if shodan_query:
@@ -52,23 +56,18 @@ if censys_query:
     try:
         censys_results = censys_search.view_all()
     except censys.common.exceptions.CensysRateLimitExceededException:
-        print("Reached API Quota")
-        quit()
-    for ip in censys_results:
-        ip_info = censys_results[ip]
-        services = ip_info["services"]
-        for service in services:
-            service_name = service["extended_service_name"]
-            service_port = service["port"]
-            if service_name in [ "HTTP", "HTTPS" ]:
-                endpoint = str(service_name.lower() + "://" + ip + ":" + str(service_port))
-                endpoints.add(endpoint)
-
-# for each endpoint
-    # create endpoint dir
-    # spider each dir
-    # only download files containing string from "filters" dictionary
-    # Add support for proxies
+        print(f"{Fore.RED}[CENSYS]{Fore.RESET} Reached API Quota")
+        censys_results = None
+    if censys_results is not None:
+        for ip in censys_results:
+            ip_info = censys_results[ip]
+            services = ip_info["services"]
+            for service in services:
+                service_name = service["extended_service_name"]
+                service_port = service["port"]
+                if service_name in [ "HTTP", "HTTPS" ]:
+                    endpoint = str(service_name.lower() + "://" + ip + ":" + str(service_port))
+                    endpoints.add(endpoint)
 
 f = open(pattern_file, "r")
 patterns = f.readlines()
@@ -80,7 +79,6 @@ except FileExistsError:
     pass
 chdir("downloads")
 
-# remove findings and .wget.log at init
 for endpoint in endpoints:
     print(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Checking {endpoint}")
     try:
@@ -95,33 +93,53 @@ for endpoint in endpoints:
     chdir(dir_name)
     # Write log file for parsing
     # TO DO: Convert this to a proper spider
-    cmd = f"wget -t 1 --spider --no-parent --recursive --no-directories {endpoint} 2>> wget.log"
+    wget_log = open("wget.log", "w")
+    cmd = f"wget -t 1 --spider --no-parent --recursive --no-directories {endpoint}"
     cmd_array = cmd.split(" ")
-    print(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Running Command: {cmd}")
-    sp.call(cmd_array)
+    print(f"{Fore.CYAN}[INFRASPYDER]{Fore.RESET} Spidering {endpoint}".strip())
+    sp.call(["wget", "-t", "1", "--spider", "--no-parent", "--recursive", "--no-directories", str(endpoint)], stderr=wget_log)
+    wget_log.close()
     try:
         f = open("wget.log", "r")
     except FileNotFoundError:
+        chdir("../")
         continue
     f.close()
     for pattern in patterns:
         cmd = "cat wget.log | grep http | grep " + pattern.strip() + " | sed 's/.* http/http/g' >> findings.log && sort -ufo findings.log findings.log"
         cmd_array = cmd.split(" ")
-        print(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Running Command: {cmd}")
-        sp.call(cmd_array)
+        system(cmd)
     try:
         f = open("findings.log", "r")
     except FileNotFoundError:
+        chdir("../")
         continue
     findings = f.readlines()
     f.close()
-    print(findings)
-    makedirs("findings")
+    try:
+        makedirs("findings")
+    except FileExistsError:
+        pass
     chdir("findings")
     for finding in findings:
+        if finding.strip().endswith("/"):
+            continue
         #print(f"Downloading {finding}".strip())
-        cmd = f"wget -t 1 {finding}"
+        cmd = f"wget -q -t 1 {finding}"
         cmd_array = cmd.split(" ")
-        print(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Running Command: {cmd}")
-        sp.call(cmd_array)
+        print(str(f"{Fore.BLUE}[INFRASPYDER]{Fore.RESET} Attempting to download {finding}").strip())
+        download_log = ".tmp.log"
+        try:
+            remove(download_log)
+        except FileNotFoundError:
+            pass
+        download_output = open(download_log, "w")
+        sp.call(["wget", "-t", "5", str(finding).strip()], stderr=download_output)
+        download_output.close()
+        with open(download_log) as f:
+            if "200 OK" in f.read():
+                print(f"{Fore.GREEN}[INFRASPYDER]{Fore.RESET} File Downloaded")
+            else:
+                print(f"{Fore.RED}[INFRASPYDER]{Fore.RESET} Download Failed")
+        remove(download_log)
     chdir("../../")
